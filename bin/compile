@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# bin/compile <build-dir> <cache-dir> <env-dir>
+
+# fail fast
+set -e
+
+BPLOG_PREFIX="buildpack.gradle-specific-spring-boot"
+
+BP_DIR=$(cd $(dirname $0)/..; pwd) # absolute path
+BIN_DIR=$BP_DIR/bin
+OPT_DIR=$BP_DIR/opt
+LIB_DIR=$BP_DIR/lib
+
+# parse args
+BUILD_DIR=$1
+CACHE_DIR=$2
+ENV_DIR=$3
+
+GRADLE_APP_NAME=$(cat "${ENV_DIR}/GRADLE_APP_NAME")
+
+source $LIB_DIR/common.sh
+source $LIB_DIR/failures.sh
+source <(curl --retry 3 -fsSL $BUILDPACK_STDLIB_URL)
+
+export_env $ENV_DIR "." "JAVA_OPTS|JAVA_TOOL_OPTIONS"
+
+GRADLE_CHECK_TASK=check
+if [ -n "${GRADLE_TESTPACK_LEGACY_TASK:-}" ]; then
+  GRADLE_CHECK_TASK=test
+fi
+
+echo "-----> Spring Boot detected"
+mcount "task.spring"
+
+GRADLE_TASK="./gradlew ${GRADLE_APP_NAME}:bootJar"
+
+install_jdk "${BUILD_DIR}" "${CACHE_DIR}"
+
+export GRADLE_OPTS="${GRADLE_OPTS}${GRADLE_OPTS:+ }-Dorg.gradle.daemon=false -Dorg.gradle.internal.launcher.welcomeMessageEnabled=false"
+
+mkdir -p "$CACHE_DIR/.gradle"
+export GRADLE_USER_HOME=${GRADLE_USER_HOME:-$CACHE_DIR/.gradle}
+
+create_project_cache_symlink "$CACHE_DIR" "$BUILD_DIR"
+
+cd $BUILD_DIR
+
+[ -n "$(find . -type f -name "*.kt")" ] && mcount "kotlin.source"
+
+# build app
+echo "-----> Building Gradle app..."
+echo "-----> executing $GRADLE_TASK"
+
+buildLogFile=$(create_build_log_file)
+
+let start=$(nowms)
+$GRADLE_TASK 2>&1 | output $buildLogFile
+
+if [ "${PIPESTATUS[*]}" != "0 0" ]; then
+  handle_gradle_errors $buildLogFile
+fi
+
+# https://github.com/heroku/heroku-buildpack-gradle/issues/49
+rm -rf "$CACHE_DIR/.gradle/nodejs"
+
+mtime "build.time" "${start}"
