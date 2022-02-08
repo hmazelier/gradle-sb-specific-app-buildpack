@@ -18,9 +18,17 @@ ENV_DIR=$3
 
 GRADLE_APP_NAME=$(cat "${ENV_DIR}/GRADLE_APP_NAME")
 
+if [[ -z "${GRADLE_APP_NAME}" ]]; then
+    echo "GRADLE_APP_NAME was not set. Aborting" | indent
+    exit 1
+fi
+
 source $LIB_DIR/common.sh
 source $LIB_DIR/failures.sh
 source <(curl --retry 3 -fsSL $BUILDPACK_STDLIB_URL)
+
+echo "echoing web: java -jar ${GRADLE_APP_NAME}/build/libs/${GRADLE_APP_NAME}-0.0.1-SNAPSHOT.jar in Procfile"
+echo "web: java -jar ${GRADLE_APP_NAME}/build/libs/${GRADLE_APP_NAME}-0.0.1-SNAPSHOT.jar" > ${BUILD_DIR}/Procfile
 
 export_env $ENV_DIR "." "JAVA_OPTS|JAVA_TOOL_OPTIONS"
 
@@ -29,7 +37,7 @@ if [ -n "${GRADLE_TESTPACK_LEGACY_TASK:-}" ]; then
   GRADLE_CHECK_TASK=test
 fi
 
-echo "-----> Spring Boot detected"
+echo "-----> Spring boot APP"
 mcount "task.spring"
 
 GRADLE_TASK="./gradlew ${GRADLE_APP_NAME}:bootJar"
