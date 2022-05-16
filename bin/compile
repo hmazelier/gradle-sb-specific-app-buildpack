@@ -28,7 +28,7 @@ source $LIB_DIR/failures.sh
 source <(curl --retry 3 -fsSL $BUILDPACK_STDLIB_URL)
 
 echo "echoing web: java -jar ${GRADLE_APP_NAME}/build/libs/${GRADLE_APP_NAME}-0.0.1-SNAPSHOT.jar in Procfile"
-echo "web: java -javaagent:./dd-java-agent.jar -jar ${GRADLE_APP_NAME}/build/libs/${GRADLE_APP_NAME}-0.0.1-SNAPSHOT.jar" > ${BUILD_DIR}/Procfile
+echo "web: java -jar ${GRADLE_APP_NAME}/build/libs/${GRADLE_APP_NAME}-0.0.1-SNAPSHOT.jar" > ${BUILD_DIR}/Procfile
 
 export_env $ENV_DIR "." "JAVA_OPTS|JAVA_TOOL_OPTIONS"
 
